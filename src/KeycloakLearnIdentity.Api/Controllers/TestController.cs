@@ -1,8 +1,8 @@
-﻿using Feree.ResultType.Results;
+﻿using Feree.ResultType;
+using Feree.ResultType.Results;
 using KeycloakLearnIdentity.Api.Models;
 using KeycloakLearnIdentity.Api.Services;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
 
@@ -25,7 +25,7 @@ public class TestController : ControllerBase
         _keycloakService = keycloakService;
     }
 
-    [HttpGet]
+    [HttpGet("test")]
     [Authorize]
     public IActionResult TestGet()
     {
@@ -35,35 +35,6 @@ public class TestController : ControllerBase
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest loginRequest)
     {
-        /*
-        // Keycloak Token URL
-        var keycloakSettings = _configuration.GetSection("Authentication:Keycloak");
-        var tokenUrl = $"{keycloakSettings["Authority"]}/protocol/openid-connect/token";
-
-        // Prepare the form data for Keycloak
-        var formData = new FormUrlEncodedContent(new[]
-        {
-                new KeyValuePair<string, string>("client_id", keycloakSettings["ClientId"]),
-                new KeyValuePair<string, string>("client_secret", keycloakSettings["ClientSecret"]),
-                new KeyValuePair<string, string>("grant_type", "password"),
-                new KeyValuePair<string, string>("username", loginRequest.Username),
-                new KeyValuePair<string, string>("password", loginRequest.Password),
-        });
-
-        // Send the request to Keycloak
-        var response = await _httpClient.PostAsync(tokenUrl, formData);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            // Return error if Keycloak authentication fails
-            var errorDetails = await response.Content.ReadAsStringAsync();
-            return BadRequest(new { message = "Invalid username or password", details = errorDetails });
-        }
-
-        // Parse and return the Keycloak response
-        var tokenResponse = await response.Content.ReadAsStringAsync();
-        return Ok(JsonSerializer.Deserialize<object>(tokenResponse));
-        */
         var tokensResponse = await _keycloakService.Login(loginRequest);
 
         if (tokensResponse is Failure<TokensResponse> failure)
@@ -85,6 +56,34 @@ public class TestController : ControllerBase
 
         if (tokensResponse is Success<TokensResponse> success)
             return Ok(success.Payload);
+
+        return StatusCode(500, "Token response was neither success or failure.");
+    }
+
+    [HttpPost("register")]
+    public async Task<IActionResult> Register([FromBody] RegisterRequest registerRequest)
+    {
+        var response = await _keycloakService.Register(registerRequest);
+
+        if (response is Failure failure)
+            return BadRequest(failure.Error.Message);
+
+        if (response is Success)
+            return Ok();
+
+        return StatusCode(500, "Token response was neither success or failure.");
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetAllUsers()
+    {
+        var response = await _keycloakService.GetUsers();
+
+        if (response is Failure failure)
+            return BadRequest(failure.Error.Message);
+
+        if (response is Success<List<UserResponse>> users)
+            return Ok(users.Payload);
 
         return StatusCode(500, "Token response was neither success or failure.");
     }
