@@ -4,7 +4,7 @@ using KeycloakLearnIdentity.Api.Models;
 using KeycloakLearnIdentity.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Text.Json;
+using Microsoft.Extensions.Logging;
 
 namespace KeycloakLearnIdentity.Api.Controllers;
 
@@ -12,17 +12,13 @@ namespace KeycloakLearnIdentity.Api.Controllers;
 [Route("api/[controller]")]
 public class TestController : ControllerBase
 {
-    private readonly IConfiguration _configuration;
-    private readonly HttpClient _httpClient;
     private readonly IKeycloakService _keycloakService;
+    private readonly ILogger<TestController> _logger;
 
-    public TestController(
-        IConfiguration configuration,
-        IKeycloakService keycloakService)
+    public TestController(IKeycloakService keycloakService, ILogger<TestController> logger)
     {
-        _configuration = configuration;
-        _httpClient = new HttpClient();
         _keycloakService = keycloakService;
+        _logger = logger;
     }
 
     [HttpGet("test")]
@@ -37,13 +33,12 @@ public class TestController : ControllerBase
     {
         var tokensResponse = await _keycloakService.Login(loginRequest);
 
-        if (tokensResponse is Failure<TokensResponse> failure)
-            return BadRequest(failure.Error.Message);
-
-        if(tokensResponse is Success<TokensResponse> success)
-            return Ok(success.Payload);
-
-        return StatusCode(500, "Token response was neither success or failure.");
+        return tokensResponse switch
+        {
+            Failure<TokensResponse> failure => BadRequest($"Login failed: {failure.Error.Message}"),
+            Success<TokensResponse> success => Ok(success.Payload),
+            _ => StatusCode(500, "An unexpected error occurred during login.")
+        };
     }
 
     [HttpPost("refresh")]
@@ -51,13 +46,12 @@ public class TestController : ControllerBase
     {
         var tokensResponse = await _keycloakService.RefreshTokens(refreshRequest);
 
-        if (tokensResponse is Failure<TokensResponse> failure)
-            return BadRequest(failure.Error.Message);
-
-        if (tokensResponse is Success<TokensResponse> success)
-            return Ok(success.Payload);
-
-        return StatusCode(500, "Token response was neither success or failure.");
+        return tokensResponse switch
+        {
+            Failure<TokensResponse> failure => BadRequest($"Token refresh failed: {failure.Error.Message}"),
+            Success<TokensResponse> success => Ok(success.Payload),
+            _ => StatusCode(500, "An unexpected error occurred during token refresh.")
+        };
     }
 
     [HttpPost("register")]
@@ -65,13 +59,12 @@ public class TestController : ControllerBase
     {
         var response = await _keycloakService.Register(registerRequest);
 
-        if (response is Failure failure)
-            return BadRequest(failure.Error.Message);
-
-        if (response is Success)
-            return Ok();
-
-        return StatusCode(500, "Token response was neither success or failure.");
+        return response switch
+        {
+            Failure failure => BadRequest($"Registration failed: {failure.Error.Message}"),
+            Success => Ok(),
+            _ => StatusCode(500, "An unexpected error occurred during registration.")
+        };
     }
 
     [HttpGet]
@@ -79,12 +72,11 @@ public class TestController : ControllerBase
     {
         var response = await _keycloakService.GetUsers();
 
-        if (response is Failure failure)
-            return BadRequest(failure.Error.Message);
-
-        if (response is Success<List<UserResponse>> users)
-            return Ok(users.Payload);
-
-        return StatusCode(500, "Token response was neither success or failure.");
+        return response switch
+        {
+            Failure<List<UserResponse>> failure => BadRequest($"Failed to retrieve users: {failure.Error.Message}"),
+            Success<List<UserResponse>> users => Ok(users.Payload),
+            _ => StatusCode(500, "An unexpected error occurred while retrieving users.")
+        };
     }
 }

@@ -1,24 +1,21 @@
-using KeycloakLearnIdentity.Api;
 using KeycloakLearnIdentity.Api.Services;
-using Microsoft.AspNetCore.Authentication.Cookies;
+using KeycloakLearnIdentity.Api.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Authentication.OpenIdConnect;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using System.Collections;
-using System.Net.WebSockets;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Register KeycloakSettings
+builder.Services.Configure<KeycloakSettings>(builder.Configuration.GetSection("Authentication:Keycloak"));
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        var keycloakSettings = builder.Configuration.GetSection("Authentication:Keycloak");
+        var keycloakSettings = builder.Configuration.GetSection("Authentication:Keycloak").Get<KeycloakSettings>();
 
-        options.Authority = keycloakSettings["Authority"];
-        options.Audience = keycloakSettings["Audience"];
+        options.Authority = keycloakSettings.Authority;
+        options.Audience = keycloakSettings.Audience;
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true, // Ensure the token is from your Keycloak
@@ -66,6 +63,7 @@ builder.Services.AddSwaggerGen(options =>
         }
     });
 });
+
 builder.Services.AddHttpClient();
 builder.Services.AddControllers();
 builder.Services.AddScoped<IKeycloakService, KeycloakService>();
