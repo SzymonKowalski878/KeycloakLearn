@@ -1,10 +1,8 @@
-﻿using Feree.ResultType;
-using Feree.ResultType.Results;
+﻿using Feree.ResultType.Results;
 using KeycloakLearnIdentity.Api.Models;
 using KeycloakLearnIdentity.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
 
 namespace KeycloakLearnIdentity.Api.Controllers;
 
@@ -76,6 +74,19 @@ public class TestController : ControllerBase
         {
             Failure<List<UserResponse>> failure => BadRequest($"Failed to retrieve users: {failure.Error.Message}"),
             Success<List<UserResponse>> users => Ok(users.Payload),
+            _ => StatusCode(500, "An unexpected error occurred while retrieving users.")
+        };
+    }
+
+    [HttpPost("confirm")]
+    public async Task<IActionResult> ConfirmEmail(string token)
+    {
+        var response = await _keycloakService.ConfirmUser(token);
+
+        return response switch
+        {
+            Failure<User> failure => BadRequest($"Failed to confirm user: {failure.Error.Message}"),
+            Success<User> users => Ok(users.Payload),
             _ => StatusCode(500, "An unexpected error occurred while retrieving users.")
         };
     }
